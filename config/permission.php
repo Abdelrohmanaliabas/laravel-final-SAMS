@@ -28,7 +28,7 @@ return [
 
     ],
     'defaults' => [
-        'guard' => 'sanctum',
+        'guard' => 'web',
     ],
 
     'table_names' => [
