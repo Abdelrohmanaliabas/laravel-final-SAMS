@@ -248,5 +248,7 @@ class DatabaseSeeder extends Seeder
         $assistant->givePermissionTo(['manage attendance','manage groups']);
 
         $parent->givePermissionTo(['view student performance']);
+
+        User::find(1)->assignRole('admin');
     }
 }
