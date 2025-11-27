@@ -25,11 +25,13 @@ class AuthController extends Controller
 
         $token = $user->createToken('sams-app')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Registration successful.',
-            'user'    => $user->only(['id', 'name', 'email', 'role', 'phone', 'status']),
-            'token'   => $token,
-        ], 201);
+        return $this->success(
+            data: [
+                'user'  => $user->only(['id', 'name', 'email', 'phone', 'status']),
+                'token' => $token,
+            ],
+            message: 'Registration successful.'
+        );
     }
 
     public function login(LoginRequest $request)
@@ -37,26 +39,37 @@ class AuthController extends Controller
         $user = Auth::attempt($request->only('email', 'password'));
 
         if (! $user) {
-            return response()->json(['message' => 'The provided credentials are incorrect.'], 401);
+            return $this->error(
+                message: 'Invalid credentials.',
+                status: 401
+            );
         }
 
         $user = User::find(Auth::id());
 
         if ($user->status !== 'active') {
-            return response()->json(['message' => 'Account is not active.'], 403);
+            return $this->error(
+                message: 'Account is not active.',
+                status: 403
+            );
         }
 
         if ($user->tokens()->count()) {
-            return response()->json(['message' => 'User is already logged in from another device.'], 403);
+            return $this->error(
+                message: 'User is already logged in from another device.',
+                status: 403
+            );
         }
 
         $token = $user->createToken('sams-app')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Login successful.',
-            'user'    => $user->only(['id', 'name', 'email', 'phone', 'status']),
-            'token'   => $token,
-        ]);
+        return $this->success(
+            data: [
+                'user'  => $user->only(['id', 'name', 'email', 'phone', 'status']),
+                'token' => $token,
+            ],
+            message: 'Login successful.'
+        );
     }
 
     public function logout()
@@ -64,10 +77,15 @@ class AuthController extends Controller
         $user = User::findOrFail(Auth::id());
         $user->tokens()->delete();
 
-        return response()->json(['message' => 'Logout successful.']);
+        return $this->success(
+            message: 'Logout successful.'
+        );
     }
     public function me()
     {
-        return response()->json(Auth::user());
+        return $this->success(
+            data: Auth::user(),
+            message: 'User retrieved successfully.'
+        );
     }
     }
