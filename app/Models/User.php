@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -25,6 +26,9 @@ class User extends Authenticatable
         'role',
         'phone',
         'status',
+        'activation_code',
+        'is_data_complete',
+        'google_id',
     ];
 
     /**
@@ -42,6 +46,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'role' => 'string',
         'status' => 'string',
+        'is_data_complete' => 'boolean',
     ];
 
     public function isAdmin(): bool
@@ -89,5 +94,8 @@ class User extends Authenticatable
         return $this->belongsToMany(Group::class, 'group_students')
             ->withPivot('status', 'joined_at')
             ->withTimestamps();
+    public function scopeIncomplete($query)
+    {
+        return $query->where('is_data_complete', false);
     }
 }
