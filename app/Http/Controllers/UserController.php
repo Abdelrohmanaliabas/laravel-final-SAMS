@@ -6,16 +6,22 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
+use App\Traits\ApiResponse;
 
 class UserController extends Controller
 {
+    use ApiResponse;
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         // return all users as JSON
-        return response()->json(User::all());
+        return $this->success(
+            data: User::with('roles:id,name')->get(),
+            message: 'Users retrieved successfully.'
+        );
     }
 
     /**
@@ -78,10 +84,10 @@ class UserController extends Controller
 
         $user->assignRole($validated['role']);
 
-        return response()->json([
-            'message' => 'Role assigned successfully.',
-            'user'    => $user->load('roles:id,name'),
-        ]);
+        return $this->success(
+            data: $user->load('roles:id,name'),
+            message: 'Role assigned successfully.'
+        );
     }
 
     public function removeRole(User $user, string $role)
@@ -91,14 +97,17 @@ class UserController extends Controller
             ->first();
 
         if (!$roleModel) {
-            return response()->json(['message' => 'Role not found.'], 404);
+            return $this->error(
+                message: 'Role not found.',
+                status: 404
+            );
         }
 
         $user->removeRole($roleModel->name);
 
-        return response()->json([
-            'message' => 'Role removed successfully.',
-            'user'    => $user->load('roles:id,name'),
-        ]);
+        return $this->success(
+            data: $user->load('roles:id,name'),
+            message: 'Role removed successfully.'
+        );
     }
 }
