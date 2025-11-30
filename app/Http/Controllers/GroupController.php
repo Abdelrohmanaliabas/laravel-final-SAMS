@@ -13,48 +13,93 @@ class GroupController extends Controller
 {
     public function index()
     {
-        $groups = Group::where('teacher_id', Auth::id())
-            ->with(['teacher', 'center', 'students', 'pendingStudents'])
-            ->withCount('students as students_count')
-            ->paginate(15);
+        try {
+            $groups = Group::where('teacher_id', Auth::id())
+                ->with(['teacher', 'center', 'students', 'pendingStudents'])
+                ->withCount('students as students_count')
+                ->paginate(1);
 
-        return GroupResource::collection($groups);
+            return $this->success(
+                data: $groups,
+                message: 'Groups retrieved successfully.'
+            );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: 'Failed to retrieve groups.',
+                status: 500,
+                errors: $e->getMessage(),
+            );
+        }
     }
 
     public function store(StoreGroupRequest $request)
     {
-        $this->authorize('create', Group::class);
+        try {
+            $this->authorize('create', Group::class);
 
-        $data = $request->validated();
-        $data['teacher_id'] = Auth::id();
+            $data = $request->validated();
+            $data['teacher_id'] = Auth::id();
 
-        $group = Group::create($data);
+            $group = Group::create($data);
 
-        return $this->show($group);
+            return $this->success(
+                data: $group,
+                message: 'Group created successfully.'
+            );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: 'Failed to create group.',
+                status: 500,
+                errors: $e->getMessage(),
+            );
+        }
     }
 
     public function show(Group $group)
     {
-        return new GroupResource(
-            $group->load(['teacher', 'center', 'students', 'pendingStudents'])
+        return $this->success(
+            data: $group,
+            message: 'Group retrieved successfully.'
         );
     }
 
     public function update(UpdateGroupRequest $request, Group $group)
     {
-        $this->authorize('update', $group);
+        try {
+            $this->authorize('update', $group);
 
-        $group->update($request->validated());
+            $group->update($request->validated());
 
-        return $this->show($group);
+            return $this->success(
+                data: $group,
+                message: 'Group updated successfully.'
+            );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: 'Failed to update group.',
+                status: 500,
+                errors: $e->getMessage(),
+            );
+        }
     }
 
     public function destroy(Group $group)
     {
         $this->authorize('delete', $group);
 
-        $group->delete();
+        try {
+            $group->delete();
 
-        return response()->json(['message' => 'Group deleted successfully']);
+            return $this->success(
+                message: 'Group deleted successfully.',
+                status: 204
+            );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: 'Failed to delete group.',
+                status: 500,
+                errors: $e->getMessage(),
+            );
+        }
     }
 }

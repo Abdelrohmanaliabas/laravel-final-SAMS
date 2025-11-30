@@ -32,14 +32,22 @@ class Group extends Model
 
     public function teacher()
     {
-        return $this->belongsTo(User::class, 'teacher_id')->where('role', 'teacher');
+        return $this->belongsTo(User::class, 'teacher_id')
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'teacher')
+                    ->where('guard_name', config('permission.defaults.guard'));
+            });
     }
 
     public function students()
     {
         return $this->belongsToMany(User::class, 'group_students', 'group_id', 'student_id')
             ->withPivot('status', 'joined_at')
-            ->where('group_students.status', 'accepted')
+            ->where('group_students.status', 'approved')
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'student')
+                    ->where('guard_name', config('permission.defaults.guard'));
+            })
             ->withTimestamps();
     }
 
@@ -48,6 +56,10 @@ class Group extends Model
         return $this->belongsToMany(User::class, 'group_students', 'group_id', 'student_id')
             ->withPivot('status', 'joined_at')
             ->where('group_students.status', 'pending')
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'student')
+                    ->where('guard_name', config('permission.defaults.guard'));
+            })
             ->withTimestamps();
     }
 }
