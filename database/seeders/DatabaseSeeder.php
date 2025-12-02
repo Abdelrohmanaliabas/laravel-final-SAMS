@@ -31,11 +31,11 @@ class DatabaseSeeder extends Seeder
         $faker = fake();
 
         // ---------- USERS ----------
-        // $admin = User::factory()->create([
-        //     'name'  => 'SAMS Super Admin',
-        //     'email' => 'ahmed.alla56756@gmail.com',
-        //     'status' => 'active',
-        // ]);
+        $admin = User::factory()->create([
+            'name'  => 'SAMS Super Admin',
+            'email' => 'ahmed.alla56756@gmail.com',
+            'status' => 'active',
+        ]);
 
         $centerAdmins = User::factory(3)->create();
         $teachers     = User::factory(6)->create();
@@ -250,6 +250,20 @@ class DatabaseSeeder extends Seeder
 
         $parent->givePermissionTo(['view student performance']);
 
-        // User::find(1)->assignRole('admin');
+        User::find(1)->assignRole('admin');
+        $users = User::get();
+        foreach ($users as $user) {
+            if ($centerAdmins->contains($user)) {
+                $user->assignRole('center_admin');
+            } elseif ($teachers->contains($user)) {
+                $user->assignRole('teacher');
+            } elseif ($assistants->contains($user)) {
+                $user->assignRole('assistant');
+            } elseif ($parents->contains($user)) {
+                $user->assignRole('parent');
+            } else {
+                $user->assignRole('student');
+            }
+        }
     }
 }
