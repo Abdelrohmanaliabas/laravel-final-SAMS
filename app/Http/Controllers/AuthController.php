@@ -38,6 +38,18 @@ class AuthController extends Controller
 
             $user->assignRole('center_admin', 'teacher');
 
+            $center = \App\Models\Center::create([
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'logo_url' => null,
+                'primary_color' => '#2d3250',
+                'secondary_color' => '#424769',
+                'subdomain' => Str::slug($user->name) . '-' . $user->id,
+                'is_active' => true,
+            ]);
+
+            $user->center()->associate($center);
+
             // Send Activation Code
             Mail::to($user->email)->queue(new ActivationCodeMail($user, $activationCode));
 
