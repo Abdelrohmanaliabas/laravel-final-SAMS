@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class GroupResource extends JsonResource
+class UserResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -17,18 +17,18 @@ class GroupResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'subject' => $this->subject,
-            'description' => $this->description,
-            'is_active' => $this->is_active,
-            'schedule_days' => $this->schedule_days,
-            'schedule_time' => $this->schedule_time?->format('H:i'),
-            'sessions_count' => $this->sessions_count,
-            'teacher' => new UserResource($this->whenLoaded('teacher')),
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'status' => $this->status,
+            'center_id' => $this->center_id,
+            'roles' => $this->whenLoaded('roles', fn() => $this->roles->pluck('name')),
+            'role' => $this->role,
             'center' => new CenterResource($this->whenLoaded('center')),
-            'students_count' => $this->whenCounted('students'),
-            'lessons_count' => $this->whenCounted('lessons'),
+            'groups' => GroupResource::collection($this->whenLoaded('groups')),
+            'groups_count' => $this->whenCounted('groups'),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 }
+
