@@ -50,8 +50,13 @@ class GroupController extends Controller
             $data['teacher_id'] = Auth::id();
 
             $group = Group::create($data);
-            $allAdmins->each(function ($admin) use ($group) {
-                $admin->notify(new NewGroupCreated($group, $group->teacher));
+            $group->load('teacher');
+            $teacher = $group->teacher ?? User::find($data['teacher_id']);
+
+            $allAdmins->each(function ($admin) use ($group, $teacher) {
+                if ($teacher) {
+                    $admin->notify(new NewGroupCreated($group, $teacher));
+                }
             });
             return $this->success(
                 data: $group,

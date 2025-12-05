@@ -99,6 +99,13 @@ class DatabaseSeeder extends Seeder
         $parents = User::factory(5)->create();
         $students = User::factory(20)->create();
 
+        // ---------- ASSIGN ROLES TO SEEDED USERS ----------
+        $centerAdmins->each(fn(User $user) => $user->assignRole($roleCenter));
+        $teachers->each(fn(User $user) => $user->assignRole($roleTeacher));
+        $assistants->each(fn(User $user) => $user->assignRole($roleAssistant));
+        $parents->each(fn(User $user) => $user->assignRole($roleParent));
+        $students->each(fn(User $user) => $user->assignRole($roleStudent));
+
         // ---------- CENTERS ----------
         $centers = collect();
         foreach ($centerAdmins as $centerAdmin) {
