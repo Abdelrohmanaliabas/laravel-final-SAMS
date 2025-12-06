@@ -6,64 +6,68 @@ use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class GroupStudentController extends Controller
 {
-    protected function canManageGroup(Group $group): bool
+    public function canManageGroup(Group $group): bool
     {
+        /** @var User|null $user */
         $user = Auth::user();
         if (!$user) {
             return false;
         }
 
-        // Admin can manage all
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        // Broad permissions first (super-admin or explicit permissions)
+        if ($user->hasRole('admin') || $user->can('manage groups') || $user->can('manage attendance')) {
             return true;
         }
 
-        // Group teacher
-        if ($group->teacher_id === $user->id) {
+        $group->loadMissing('center');
+        $userCenterId = $user->center_id ?? $user->ownedCenter?->id;
+
+        // Teacher directly assigned to the group
+        if ($user->hasRole('teacher') && $group->teacher_id === $user->id) {
             return true;
         }
 
-        // Center admin for this group center
-        if (($user->hasRole('center_admin') || $user->role === 'center_admin') && $group->center?->user_id === $user->id) {
+        // Center admin over the group center
+        if ($user->hasRole('center_admin') && $userCenterId && $group->center_id === $userCenterId) {
             return true;
         }
 
-        // Assistant within same center (enrolled in any group of this center)
-        if ($user->hasRole('assistant') || $user->role === 'assistant') {
-            return $user->groups()->where('center_id', $group->center_id)->exists();
+        // Assistant working within the same center
+        if ($user->hasRole('assistant') && $userCenterId && $group->center_id === $userCenterId) {
+            return true;
         }
 
         return false;
     }
 
-    public function index(Group $group)
+    public function index(Request $request, Group $group)
     {
+        if (!$group->exists) {
+            $groupId = $request->route('group') ?? $request->input('group_id');
+            $group = Group::with('center')->find($groupId);
+            if (!$group) {
+                return $this->error('Group not found.', 404);
+            }
+        }
+
         if (!$this->canManageGroup($group)) {
             return $this->error('Unauthorized.', 403);
         }
 
-        $students = $group->students()
-            ->select('users.id', 'users.name', 'users.email', 'users.phone')
-            ->get();
+        $group->load([
+            'students' => fn($q) => $q->select('users.id', 'users.name', 'users.email', 'users.phone')
+                ->withPivot('status', 'joined_at', 'is_pay'),
+            'pendingStudents' => fn($q) => $q->select('users.id', 'users.name', 'users.email', 'users.phone')
+                ->withPivot('status', 'joined_at', 'is_pay'),
+        ]);
 
-        return $this->success($students, 'Group students retrieved successfully.');
-    }
-
-    public function requests(Group $group)
-    {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
-
-        $students = $group->pendingStudents()
-            ->select('users.id', 'users.name', 'users.email', 'users.phone')
-            ->get();
-
-        return $this->success($students, 'Group join requests retrieved successfully.');
+        return $this->success([
+            'approved' => $group->students,
+            'pending' => $group->pendingStudents,
+        ], 'Group students retrieved successfully.');
     }
 
     public function store(Request $request, Group $group)
@@ -78,7 +82,7 @@ class GroupStudentController extends Controller
 
         /** @var User $student */
         $student = User::findOrFail($data['student_id']);
-        if (!$student->hasRole('student') && $student->role !== 'student') {
+        if (!$student->hasRole('student')) {
             return $this->error('User is not a student.', 422);
         }
 
@@ -93,54 +97,4 @@ class GroupStudentController extends Controller
         return $this->success(null, 'Student added to group successfully.', 201);
     }
 
-    public function approve(Group $group, User $student)
-    {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
-
-        $exists = DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->exists();
-
-        if (!$exists) {
-            return $this->error('Membership not found.', 404);
-        }
-
-        DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->update([
-                'status' => 'approved',
-                'joined_at' => now(),
-            ]);
-
-        return $this->success(null, 'Join request approved.');
-    }
-
-    public function reject(Group $group, User $student)
-    {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
-
-        $exists = DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->exists();
-
-        if (!$exists) {
-            return $this->error('Membership not found.', 404);
-        }
-
-        DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->update(['status' => 'rejected']);
-
-        return $this->success(null, 'Join request rejected.');
-    }
 }
-
-

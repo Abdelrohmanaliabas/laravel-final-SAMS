@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use App\Mail\ActivationCodeMail;
 use App\Mail\ResetCodeMail;
+use App\Models\Center;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +24,7 @@ class AuthController extends Controller
 {
     public function register(RegisterRequest $request)
     {
+        DB::beginTransaction();
         try {
             $validated = $request->validated();
 
@@ -36,11 +38,17 @@ class AuthController extends Controller
                 'status' => 'active',
             ]);
 
+            $guard = config('permission.defaults.guard', 'api');
+            Role::firstOrCreate(['name' => 'center_admin', 'guard_name' => $guard]);
+            Role::firstOrCreate(['name' => 'teacher', 'guard_name' => $guard]);
+
             $user->assignRole('center_admin', 'teacher');
 
-            $center = \App\Models\Center::create([
+            $centerName = $validated['center_name'] ?? $user->name;
+
+            $center = Center::create([
                 'user_id' => $user->id,
-                'name' => $user->name,
+                'name' => $centerName,
                 'logo_url' => null,
                 'primary_color' => '#2d3250',
                 'secondary_color' => '#424769',
@@ -49,21 +57,28 @@ class AuthController extends Controller
             ]);
 
             $user->center()->associate($center);
+            $user->center_id = $center->id;
+            $user->save();
 
             // Send Activation Code
             Mail::to($user->email)->queue(new ActivationCodeMail($user, $activationCode));
 
             $token = $user->createToken('sams-app')->plainTextToken;
 
-            return response()->json([
-                'message' => 'Registration successful. Please check your email for the activation code.',
+            DB::commit();
+
+            return $this->success([
                 'user' => array_merge(
-                    $user->only(['id', 'name', 'email', 'phone', 'status']),
-                    ['roles' => $user->getRoleNames()]
+                    $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
+                    [
+                        'roles' => $user->getRoleNames(),
+                        'role' => $user->getRoleNames()->first(),
+                    ]
                 ),
                 'token' => $token,
-            ], 201);
+            ], 'Registration successful. Please check your email for the activation code.', 201);
         } catch(\Exception $e) {
+            DB::rollBack();
             return $this->error(
                 message: $e->getMessage(),
                 errors: $e->getMessage(),
@@ -172,7 +187,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Login successful.',
             'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
                 ['roles' => $user->getRoleNames()]
             ),
             'token' => $token,
@@ -200,7 +215,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Login successful.',
             'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
                 ['roles' => $user->getRoleNames()]
             ),
             'token' => $token,
@@ -217,10 +232,66 @@ class AuthController extends Controller
     public function me()
     {
         $user = User::findOrFail(Auth::id());
-        return response()->json(array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status']),
+        return $this->success(array_merge(
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id']),
             ['roles' => $user->getRoleNames()]
         ));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'avatar' => 'nullable|image|max:2048',
+        ]);
+
+        if (array_key_exists('name', $validated)) {
+            $user->name = $validated['name'];
+        }
+
+        if (array_key_exists('phone', $validated)) {
+            $user->phone = $validated['phone'];
+        }
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $user->avatar = $path;
+        }
+
+        $user->save();
+
+        return $this->success(array_merge(
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id']),
+            ['roles' => $user->getRoleNames()]
+        ), 'Profile updated successfully.');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                Password::min(8)->letters()->mixedCase()->numbers()->symbols(),
+            ],
+        ]);
+
+        // Verify current password
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return $this->error('The current password is incorrect.', 422);
+        }
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        return $this->success(null, 'Password updated successfully.');
     }
 
     public function sendResetCode(Request $request)
