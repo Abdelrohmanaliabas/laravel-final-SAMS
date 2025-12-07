@@ -7,12 +7,15 @@ use App\Http\Resources\UserResource;
 use App\Mail\NewAccountMail;
 use App\Models\Group;
 use App\Models\User;
+use App\Notifications\StudentAccountCreated;
+use App\Notifications\StudentAddedToGroup;
 use App\Services\GroupScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class TeacherManagementController extends Controller
 {
@@ -83,9 +86,16 @@ class TeacherManagementController extends Controller
     {
         $this->authorize('create', User::class);
 
+        $existingUser = User::where('email', $request->input('email'))->first();
+        $emailRule = Rule::unique('users', 'email');
+
+        if ($request->input('role') === 'student' && $existingUser) {
+            $emailRule = $emailRule->ignore($existingUser->id);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => ['required', 'email', $emailRule],
             'phone' => 'nullable|string|max:20',
             'role' => 'required|in:student,parent',
             'group_id' => 'required_if:role,student|exists:groups,id',
@@ -96,6 +106,40 @@ class TeacherManagementController extends Controller
 
         if (!$user->center_id) {
             return $this->error('Teacher must belong to a center', 400);
+        }
+
+        // Reuse existing student without resetting password
+        if ($validated['role'] === 'student' && $existingUser) {
+            $existingUser->fill([
+                'name' => $validated['name'],
+                'phone' => $validated['phone'] ?? $existingUser->phone,
+                'center_id' => $user->center_id,
+                'status' => 'active',
+            ])->save();
+
+            if (!$existingUser->hasRole('student')) {
+                $existingUser->assignRole('student');
+            }
+
+            $group = Group::find($validated['group_id']);
+            if (!$group || $group->center_id !== $user->center_id) {
+                return $this->error('Group does not belong to this center', 403);
+            }
+
+            $existingUser->groups()->syncWithoutDetaching([
+                $group->id => [
+                    'status' => 'approved',
+                    'joined_at' => now(),
+                ],
+            ]);
+
+            $existingUser->notify(new StudentAddedToGroup($user, $group));
+
+            return $this->success(
+                new UserResource($existingUser->load('roles')),
+                'Existing student linked to group successfully.',
+                200
+            );
         }
 
         DB::beginTransaction();
@@ -126,6 +170,9 @@ class TeacherManagementController extends Controller
                     'status' => 'approved',
                     'joined_at' => now(),
                 ]);
+
+                // Send email + notification
+                $newUser->notify(new StudentAccountCreated($password, $user, $group));
             }
 
             // Link parent to student
@@ -143,7 +190,9 @@ class TeacherManagementController extends Controller
             }
 
             // Send email with credentials
-            Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password, config('app.frontend_url/login')));
+            if ($validated['role'] !== 'student') {
+                Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password, config('app.frontend_url/login')));
+            }
 
             DB::commit();
 
