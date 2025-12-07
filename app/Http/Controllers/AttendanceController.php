@@ -60,18 +60,30 @@ class AttendanceController extends Controller
 
             $data = $request->validated();
             $date = $data['date'];
+            $lessonId = $data['lesson_id'] ?? null;
             $entries = $data['entries'];
             $userId = Auth::id();
 
             foreach ($entries as $entry) {
+                $matchAttributes = [
+                    'center_id' => $group->center_id,
+                    'group_id' => $group->id,
+                    'student_id' => $entry['student_id'],
+                ];
+
+                // If lesson_id is provided, include it in the match attributes to ensure uniqueness per lesson
+                if ($lessonId) {
+                    $matchAttributes['lesson_id'] = $lessonId;
+                } else {
+                    // Fallback to date-based uniqueness if no lesson_id (legacy behavior)
+                    $matchAttributes['date'] = $date;
+                }
+
                 Attendance::updateOrCreate(
+                    $matchAttributes,
                     [
-                        'center_id' => $group->center_id,
-                        'group_id' => $group->id,
-                        'student_id' => $entry['student_id'],
-                        'date' => $date,
-                    ],
-                    [
+                        'date' => $date, // Ensure date is always set/updated
+                        'lesson_id' => $lessonId, // Ensure lesson_id is set if creating new
                         'status' => $entry['status'],
                         'marked_by' => $userId,
                     ]

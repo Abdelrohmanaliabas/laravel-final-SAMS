@@ -13,6 +13,7 @@ class Assessment extends Model
     protected $fillable = [
         'center_id',
         'group_id',
+        'lesson_id',
         'title',
         'max_score',
         'scheduled_at',
@@ -23,12 +24,17 @@ class Assessment extends Model
         return $this->belongsTo(Group::class);
     }
 
+    public function lesson()
+    {
+        return $this->belongsTo(Lesson::class);
+    }
+
     public function center()
     {
         return $this->belongsTo(Center::class);
     }
 
-    public function assessment_results()
+    public function results()
     {
         return $this->hasMany(AssessmentResult::class);
     }

@@ -11,18 +11,15 @@ class StoreAssessmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true; // Authorized via middleware/controller checks
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'title' => ['required', 'string', 'max:255'],
+            'scheduled_at' => ['required', 'date'],
+            'max_score' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

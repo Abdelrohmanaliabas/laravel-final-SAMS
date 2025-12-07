@@ -14,6 +14,7 @@ class Lesson extends Model
         'title',
         'description',
         'scheduled_at',
+        'video_url',
     ];
 
     protected $casts = [
@@ -28,5 +29,15 @@ class Lesson extends Model
     public function resources()
     {
         return $this->hasMany(LessonResource::class);
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function assessments()
+    {
+        return $this->hasMany(Assessment::class);
     }
 }

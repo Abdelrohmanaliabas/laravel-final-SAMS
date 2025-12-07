@@ -49,7 +49,7 @@ class LessonController extends Controller
     public function show(Lesson $lesson)
     {
         $this->authorize('view', $lesson);
-        $lesson->load('group');
+        $lesson->load(['group', 'resources', 'attendances.student', 'assessments']);
 
         return $this->success(new LessonResource($lesson), 'Lesson retrieved successfully.');
     }
