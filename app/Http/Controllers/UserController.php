@@ -20,19 +20,73 @@ class UserController extends Controller
     {
         // return all users as JSON
         try {
-            $query = User::with('roles:id,name');
+            $perPage = max(1, min(request()->integer('per_page', 20), 200));
+            $page = max(1, request()->integer('page', 1));
+            $search = request()->string('search')->toString();
+            $sortBy = request()->string('sort_by')->toString() ?: 'created_at';
+            $sortDir = strtolower(request()->string('sort_dir')->toString()) === 'asc' ? 'asc' : 'desc';
+            $allowedSorts = ['created_at', 'name', 'email', 'status', 'groups_count', 'children_count'];
+            if (!in_array($sortBy, $allowedSorts)) {
+                $sortBy = 'created_at';
+            }
+
+            $query = User::query()->with(['roles:id,name', 'center:id,name']);
+
+            $role = null;
             if (request()->filled('role')) {
                 $role = request()->string('role')->toString();
+
                 $query->whereHas('roles', function ($q) use ($role) {
                     $q->where('name', $role);
                 });
             }
 
-            $users = $query->paginate(20);
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            if ($role === 'student') {
+                $query->withCount('groups')
+                    ->with([
+                        'groups:id,name,center_id',
+                        'groups.center:id,name',
+                    ]);
+            }
+
+            if ($role === 'parent') {
+                $query->withCount('children')
+                    ->with([
+                        'children:id,name,email,center_id',
+                        'children.groups:id,name,center_id',
+                        'children.groups.center:id,name',
+                    ]);
+            }
+
+            $users = $query
+                ->orderBy($sortBy, $sortDir)
+                ->paginate($perPage, ['*'], 'page', $page);
             return $this->success(
-            data: $users,
-            message: 'Users retrieved successfully.'
-        );
+                data: $users,
+                message: 'Users retrieved successfully.',
+                meta: [
+                    'pagination' => [
+                        'current_page' => $users->currentPage(),
+                        'per_page' => $users->perPage(),
+                        'total' => $users->total(),
+                        'last_page' => $users->lastPage(),
+                    ],
+                    'filters' => [
+                        'search' => $search,
+                        'role' => $role,
+                        'sort_by' => $sortBy,
+                        'sort_dir' => $sortDir,
+                    ],
+                ]
+            );
         } catch (\Exception $e) {
             return $this->error(
                 message: "Somthing went wrong" . $e->getMessage(),
