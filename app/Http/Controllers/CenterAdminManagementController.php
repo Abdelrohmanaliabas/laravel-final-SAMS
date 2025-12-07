@@ -7,6 +7,8 @@ use App\Mail\NewAccountMail;
 use App\Models\Group;
 use App\Models\Lesson;
 use App\Models\User;
+use App\Notifications\StudentAccountCreated;
+use App\Notifications\StudentAddedToGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -104,7 +106,7 @@ class CenterAdminManagementController extends Controller
         DB::beginTransaction();
         try {
             if ($validated['role'] === 'student' && $existingUser) {
-                $existingUser = $this->reuseStudent($existingUser, $validated, $center);
+                $existingUser = $this->reuseStudent($existingUser, $validated, $center, $request->user());
 
                 DB::commit();
 
@@ -134,7 +136,8 @@ class CenterAdminManagementController extends Controller
             $user->assignRole($validated['role']);
 
             if ($validated['role'] === 'student' && isset($validated['group_id'])) {
-                $this->attachStudentToGroup($user, $validated['group_id'], $center);
+                $group = $this->attachStudentToGroup($user, $validated['group_id'], $center);
+                $user->notify(new StudentAccountCreated($password, $request->user(), $group));
             }
 
             if ($validated['role'] === 'parent') {
@@ -143,8 +146,10 @@ class CenterAdminManagementController extends Controller
                 $this->attachParentToStudents($user, $studentIds);
             }
 
-            // Send email with credentials
-            Mail::to($user->email)->send(new NewAccountMail($user, $password, config('app.frontend_url/login')));
+            // Send email with credentials for non-student roles
+            if ($validated['role'] !== 'student') {
+                Mail::to($user->email)->send(new NewAccountMail($user, $password, config('app.frontend_url/login')));
+            }
 
             DB::commit();
 
@@ -188,7 +193,7 @@ class CenterAdminManagementController extends Controller
         ]);
     }
 
-    protected function reuseStudent(User $student, array $validated, $center): User
+    protected function reuseStudent(User $student, array $validated, $center, User $actor): User
     {
         $student->fill([
             'name' => $validated['name'],
@@ -202,9 +207,12 @@ class CenterAdminManagementController extends Controller
             $student->assignRole('student');
         }
 
+        $group = null;
         if (isset($validated['group_id'])) {
-            $this->attachStudentToGroup($student, $validated['group_id'], $center);
+            $group = $this->attachStudentToGroup($student, $validated['group_id'], $center);
         }
+
+        $student->notify(new StudentAddedToGroup($actor, $group));
 
         return $student;
     }
@@ -241,11 +249,11 @@ class CenterAdminManagementController extends Controller
         ]);
     }
 
-    protected function attachStudentToGroup(User $student, int $groupId, $center): void
+    protected function attachStudentToGroup(User $student, int $groupId, $center): ?Group
     {
         $group = Group::where('center_id', $center->id)->where('id', $groupId)->first();
         if (!$group) {
-            return;
+            return null;
         }
 
         $alreadyInGroup = $student->groups()
@@ -262,6 +270,8 @@ class CenterAdminManagementController extends Controller
         } else {
             $student->groups()->attach($group->id, $pivotData);
         }
+
+        return $group;
     }
 
     protected function collectParentStudentIds(array $validated): \Illuminate\Support\Collection

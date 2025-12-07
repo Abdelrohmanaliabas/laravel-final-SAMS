@@ -22,7 +22,7 @@ class AssessmentResultFactory extends Factory
             'assessment_id' => Assessment::factory(),
             'student_id' => User::factory()->student(),
             'score' => fake()->randomFloat(2, 40, 100),
-            'remarks' => fake()->sentence(),
+            'feedback' => fake()->sentence(),
         ];
     }
 }

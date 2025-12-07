@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Group;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\ApiResponse;
@@ -136,7 +137,7 @@ class StudentDashboardController extends Controller
                 'group:id,name',
                 'assessment_results' => function ($query) use ($student) {
                     $query->where('student_id', $student->id)
-                        ->select('id', 'assessment_id', 'student_id', 'score', 'remarks');
+                        ->select('id', 'assessment_id', 'student_id', 'score', 'feedback');
                 },
             ])
             ->orderByDesc('scheduled_at')
@@ -160,10 +161,71 @@ class StudentDashboardController extends Controller
                     'max_score' => $assignment->max_score,
                     'scheduled_at' => $assignment->scheduled_at,
                     'score' => $result?->score,
-                    'remarks' => $result?->remarks,
+                    'feedback' => $result?->feedback,
                 ];
             });
 
         return $this->success($assignments, message: 'Student assignments retrieved successfully.');
+    }
+
+    /**
+     * Paginated attendance records for the authenticated student with optional filters.
+     */
+    public function studentAttendance()
+    {
+        $student = User::findOrFail(Auth::id());
+
+        $perPage = max(5, min((int) request('per_page', 10), 100));
+        $page = max(1, (int) request('page', 1));
+        $dateFilter = request('date');
+        $subjectFilter = request('subject');
+
+        $query = $student->attendances()
+            ->with([
+                'group:id,name,subject',
+                'lesson:id,group_id,scheduled_at',
+            ])
+            ->orderByDesc('date')
+            ->orderByDesc('id');
+
+        if ($dateFilter) {
+            $query->whereDate('date', $dateFilter);
+        }
+
+        if ($subjectFilter && strtolower($subjectFilter) !== 'all') {
+            $query->whereHas('group', function ($q) use ($subjectFilter) {
+                $q->where('subject', 'like', '%' . $subjectFilter . '%');
+            });
+        }
+
+        /** @var LengthAwarePaginator $attendance */
+        $attendance = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $data = $attendance->getCollection()->map(function ($record) {
+            return [
+                'id' => $record->id,
+                'date' => optional($record->date)->toDateString(),
+                'status' => $record->status,
+                'group_id' => $record->group_id,
+                'group_name' => $record->group->name ?? null,
+                'subject' => $record->group->subject ?? null,
+                'lesson_id' => $record->lesson_id,
+                'lesson_date' => optional($record->lesson?->scheduled_at)->toDateTimeString(),
+            ];
+        });
+
+        return $this->success([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $attendance->currentPage(),
+                'per_page' => $attendance->perPage(),
+                'total' => $attendance->total(),
+                'last_page' => $attendance->lastPage(),
+                'filters' => [
+                    'date' => $dateFilter,
+                    'subject' => $subjectFilter,
+                ],
+            ],
+        ], 'Student attendance retrieved successfully.');
     }
 }

@@ -38,4 +38,8 @@ class Assessment extends Model
     {
         return $this->hasMany(AssessmentResult::class);
     }
+    public function assessment_results()
+    {
+        return $this->hasMany(AssessmentResult::class);
+    }
 }

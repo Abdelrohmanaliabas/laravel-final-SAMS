@@ -266,7 +266,7 @@ class DatabaseSeeder extends Seeder
                             'assessment_id' => $assessment->id,
                             'student_id' => $student->id,
                             'score' => $faker->randomFloat(2, 40, 100),
-                            'remarks' => $faker->sentence(),
+                            'feedback' => $faker->sentence(),
                         ]);
                     }
                 }
