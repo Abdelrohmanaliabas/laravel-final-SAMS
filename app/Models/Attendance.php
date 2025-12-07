@@ -13,6 +13,7 @@ class Attendance extends Model
     protected $fillable = [
         'center_id',
         'group_id',
+        'lesson_id',
         'student_id',
         'date',
         'status',
@@ -31,6 +32,11 @@ class Attendance extends Model
     public function group()
     {
         return $this->belongsTo(Group::class);
+    }
+
+    public function lesson()
+    {
+        return $this->belongsTo(Lesson::class);
     }
 
     public function student()

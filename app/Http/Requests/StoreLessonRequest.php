@@ -25,6 +25,7 @@ class StoreLessonRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'scheduled_at' => ['required', 'date'],
+            'video_url' => ['nullable', 'string', 'url'],
         ];
     }
 

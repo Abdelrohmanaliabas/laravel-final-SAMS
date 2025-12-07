@@ -10,12 +10,8 @@ class AssessmentResult extends Model
     /** @use HasFactory<\Database\Factories\AssessmentResultFactory> */
     use HasFactory;
 
-    protected $fillable = [
-        'assessment_id',
-        'student_id',
-        'score',
-        'remarks',
-    ];
+    protected $fillable = ['assessment_id', 'student_id', 'score', 'feedback'];
+
 
     public function assessment()
     {

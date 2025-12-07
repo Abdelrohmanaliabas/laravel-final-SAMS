@@ -23,6 +23,7 @@ class StoreAttendanceRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date'],
+            'lesson_id' => ['nullable', 'exists:lessons,id'],
             'entries' => ['required', 'array', 'min:1'],
             'entries.*.student_id' => ['required', 'exists:users,id'],
             'entries.*.status' => ['required', 'in:present,absent,late,excused'],

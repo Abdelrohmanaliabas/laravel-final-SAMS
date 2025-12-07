@@ -68,9 +68,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Lessons within groups (teachers/assistants/center_admin/admin)
     Route::get('/groups/{group}/lessons', [LessonController::class, 'index']);
     Route::post('/groups/{group}/lessons', [LessonController::class, 'store']);
+    Route::get('/lessons/{lesson}', [LessonController::class, 'show']);
     Route::put('/lessons/{lesson}', [LessonController::class, 'update']);
     Route::patch('/lessons/{lesson}', [LessonController::class, 'update']);
     Route::delete('/lessons/{lesson}', [LessonController::class, 'destroy']);
+    Route::post('/lessons/{lesson}/assessments', [App\Http\Controllers\AssessmentController::class, 'store']);
+    Route::get('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'show']);
+    Route::post('/assessments/{assessment}/results', [App\Http\Controllers\AssessmentController::class, 'storeResult']);
 
     // Group students management (teachers/assistants/center_admin/admin)
     Route::get('/groups/{group}/students', [GroupStudentController::class, 'index']);
@@ -115,7 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/students/{user}', [CenterAdminController::class, 'destroyStudent']);
     });
 
-  Route::prefix('notifications')->group(function () {
+    Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/latest', [NotificationController::class, 'latest']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
