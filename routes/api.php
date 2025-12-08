@@ -98,6 +98,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/lessons/{lesson}', [LessonController::class, 'destroy']);
     Route::post('/lessons/{lesson}/assessments', [App\Http\Controllers\AssessmentController::class, 'store']);
     Route::get('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'show']);
+    Route::put('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'update']);
+    Route::delete('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'destroy']);
     Route::post('/assessments/{assessment}/results', [App\Http\Controllers\AssessmentController::class, 'storeResult']);
 
     // Group students management (teachers/assistants/center_admin/admin)
