@@ -229,13 +229,13 @@ class AuthController extends Controller
         $user = Auth::attempt($request->only('email', 'password'));
 
         if (!$user) {
-            return response()->json(['message' => 'The provided credentials are incorrect.'], 401);
+            return $this->error(message: 'The provided credentials are incorrect.', status: 401);
         }
 
         $user = User::find(Auth::id());
 
         if ($user->status !== 'active') {
-            return response()->json(['message' => 'Account is not active.'], 403);
+            return $this->error(message: 'Account is not active.', status: 403);
         }
 
         // Check approval status for center_admin users
