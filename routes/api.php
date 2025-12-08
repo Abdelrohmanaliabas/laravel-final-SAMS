@@ -29,6 +29,11 @@ Route::post('/contact', [ContactController::class, 'store']);
 // Admin contacts route (requires auth + admin role)
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/admin/contacts', [ContactController::class, 'index']);
+
+    // Center Admin Approval Management
+    Route::get('/admin/pending-centers', [App\Http\Controllers\AdminCenterApprovalController::class, 'index']);
+    Route::post('/admin/centers/{user}/approve', [App\Http\Controllers\AdminCenterApprovalController::class, 'approve']);
+    Route::post('/admin/centers/{user}/reject', [App\Http\Controllers\AdminCenterApprovalController::class, 'reject']);
 });
 
 Route::prefix('auth')->group(function () {
