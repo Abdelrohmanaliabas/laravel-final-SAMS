@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\Group;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,11 +15,13 @@ class StudentAccountCreated extends Notification implements ShouldQueue
 
     public $password;
     public $createdBy;
+    public $group;
 
-    public function __construct(string $password, User $createdBy)
+    public function __construct(string $password, User $createdBy, ?Group $group = null)
     {
         $this->password = $password;
         $this->createdBy = $createdBy;
+        $this->group = $group;
     }
 
     /**
@@ -37,7 +40,9 @@ class StudentAccountCreated extends Notification implements ShouldQueue
         return [
             'type' => 'student_account_created',
             'title' => 'Welcome to SAMS',
-            'message' => 'Your account has been created successfully. You can now login and join groups.',
+            'message' => $this->group
+                ? "Your account has been created and you have been added to {$this->group->name}."
+                : 'Your account has been created successfully. You can now login and join groups.',
             'icon' => 'academic-cap',
             'created_at' => now()->toISOString(),
         ];
@@ -52,6 +57,7 @@ class StudentAccountCreated extends Notification implements ShouldQueue
             ->subject('Welcome to SAMS - Your Account Has Been Created')
             ->greeting("Hello {$notifiable->name},")
             ->line('A student account has been created for you in SAMS.')
+            ->when($this->group, fn($mail) => $mail->line("You have been added to the group {$this->group->name}."))
             ->line('Your login credentials:')
             ->line("Email: {$notifiable->email}")
             ->line("Password: {$this->password}")

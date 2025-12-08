@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Group;
-use App\Http\Resources\GroupResource;
 use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
 use App\Models\User;
@@ -13,6 +12,8 @@ use App\Notifications\NewGroupCreated;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GroupController extends Controller
 {
@@ -34,7 +35,7 @@ class GroupController extends Controller
             $query = Group::with(['teacher', 'center'])
                 ->withCount('lessons')
                 ->addSelect([
-                    'students_count' => \DB::table('group_students')
+                    'students_count' => DB::table('group_students')
                         ->selectRaw('count(*)')
                         ->whereColumn('group_students.group_id', 'groups.id')
                         ->where('group_students.status', 'approved')
@@ -155,7 +156,7 @@ class GroupController extends Controller
             $group->loadCount('lessons');
 
             // Count students separately due to complex relationship constraints
-            $studentsCount = \DB::table('group_students')
+            $studentsCount = DB::table('group_students')
                 ->where('group_id', $group->id)
                 ->where('status', 'approved')
                 ->count();
@@ -167,7 +168,7 @@ class GroupController extends Controller
                 message: 'Group retrieved successfully.'
             );
         } catch (\Exception $e) {
-            \Log::error('Failed to retrieve group: ' . $e->getMessage(), [
+            Log::error('Failed to retrieve group: ' . $e->getMessage(), [
                 'group_id' => $group->id,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -222,7 +223,7 @@ class GroupController extends Controller
             $group->loadCount('lessons');
 
             // Count students separately due to complex relationship constraints
-            $studentsCount = \DB::table('group_students')
+            $studentsCount = DB::table('group_students')
                 ->where('group_id', $group->id)
                 ->where('status', 'approved')
                 ->count();
@@ -238,7 +239,7 @@ class GroupController extends Controller
                 status: 403,
             );
         } catch (\Exception $e) {
-            \Log::error('Failed to update group: ' . $e->getMessage(), [
+            Log::error('Failed to update group: ' . $e->getMessage(), [
                 'group_id' => $group->id,
                 'data' => $request->validated(),
                 'trace' => $e->getTraceAsString()
@@ -269,7 +270,7 @@ class GroupController extends Controller
                 status: 403,
             );
         } catch (\Exception $e) {
-            \Log::error('Failed to delete group: ' . $e->getMessage(), [
+            Log::error('Failed to delete group: ' . $e->getMessage(), [
                 'group_id' => $group->id,
                 'trace' => $e->getTraceAsString()
             ]);

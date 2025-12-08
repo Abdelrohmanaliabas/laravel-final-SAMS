@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignIdFor(Assessment::class)->constrained()->cascadeOnDelete();
             $table->foreignIdFor(User::class,'student_id')->constrained()->cascadeOnDelete();
             $table->decimal('score', 5, 2)->nullable();
-            $table->text('remarks')->nullable();
+            $table->text('feedback')->nullable();
             $table->timestamps();
             $table->unique(['assessment_id', 'student_id']);
         });
