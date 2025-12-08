@@ -321,14 +321,22 @@ class AuthController extends Controller
             'code' => ['required', 'string'],
         ]);
 
-        // Find a matching record where the hashed token matches the provided code
-        $record = DB::table('password_reset_tokens')->where('created_at', '>=', now()->subMinutes(30))->first();
-        if (!$record || !Hash::check($request->code, $record->token)) {
+        $records = DB::table('password_reset_tokens')
+            ->where('created_at', '>=', now()->subMinutes(30))
+            ->get();
+
+        $record = $records->first(function ($entry) use ($request) {
+            return Hash::check($request->code, $entry->token);
+        });
+
+        if (!$record) {
             return response()->json(['message' => 'Invalid or expired reset code.'], 400);
         }
 
-        // Return the plain code as a token that can be used in resetPassword
-        return response()->json(['data' => ['token' => $request->code]]);
+        return response()->json(['data' => [
+            'token' => $request->code,
+            'email' => $record->email,
+        ]]);
     }
 
     public function resetPassword(Request $request)
