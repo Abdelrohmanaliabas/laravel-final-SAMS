@@ -128,7 +128,7 @@ class CenterAdminController extends Controller
         ->withCount('students')
             ->where('center_id', $center->id)
             ->orderBy('updated_at', 'desc')
-            ->paginate(15);
+            ->paginate(10);
 
         return $this->success($groups, 'Center groups retrieved successfully.');
     }
