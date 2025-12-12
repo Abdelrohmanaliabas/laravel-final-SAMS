@@ -35,9 +35,6 @@ class AssessmentController extends Controller
         $this->authorize('create', Assessment::class);
 
         // Additional check: Ensure the user can actually add an assessment to THIS lesson's group
-        // The 'create' policy is generic, so we might want to check if they can update the lesson or group
-        // But for now, let's rely on the fact that if they can create, they are a Teacher/Assistant/Admin.
-        // If Teacher, we must ensure the lesson belongs to their group.
         if (auth()->user()->hasRole('teacher')) {
             if ($lesson->group->teacher_id !== auth()->id()) {
                 abort(403, 'You can only add assessments to your own groups.');
@@ -66,10 +63,11 @@ class AssessmentController extends Controller
 
         $assessment = Assessment::create($data);
 
-        return response()->json([
-            'message' => 'Assessment created successfully.',
-            'data' => $assessment
-        ], 201);
+        return $this->success(
+            data: new \App\Http\Resources\AssessmentResource($assessment),
+            message: 'Assessment created successfully.',
+            status: 201
+        );
     }
 
     /**
@@ -97,12 +95,9 @@ class AssessmentController extends Controller
             return $student;
         });
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'assessment' => $assessment,
-                'students' => $students
-            ]
+        return $this->success([
+            'assessment' => new \App\Http\Resources\AssessmentResource($assessment),
+            'students' => $students
         ]);
     }
 
@@ -118,11 +113,10 @@ class AssessmentController extends Controller
             ['score' => $data['score'], 'feedback' => $data['feedback'] ?? null]
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Grade saved successfully.',
-            'data' => $result
-        ]);
+        return $this->success(
+            data: $result,
+            message: 'Grade saved successfully.'
+        );
     }
 
     public function update(UpdateAssessmentRequest $request, Assessment $assessment)
@@ -137,11 +131,10 @@ class AssessmentController extends Controller
 
         $assessment->update($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Assessment updated successfully.',
-            'data' => $assessment
-        ]);
+        return $this->success(
+            data: new \App\Http\Resources\AssessmentResource($assessment),
+            message: 'Assessment updated successfully.'
+        );
     }
 
     public function destroy(Assessment $assessment)
@@ -150,9 +143,8 @@ class AssessmentController extends Controller
 
         $assessment->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Assessment deleted successfully.'
-        ]);
+        return $this->success(
+            message: 'Assessment deleted successfully.'
+        );
     }
 }

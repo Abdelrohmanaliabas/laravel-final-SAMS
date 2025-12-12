@@ -102,11 +102,11 @@ class AuthController extends Controller
         $user = User::where('activation_code', $request->code)->first();
 
         if (!$user) {
-            return response()->json(['message' => 'Activation link is invalid or has already been used.'], 404);
+            return $this->error('Activation link is invalid or has already been used.', 404);
         }
 
         if ($user->email_verified_at) {
-            return response()->json(['message' => 'Email is already verified.']);
+            return $this->success(message: 'Email is already verified.');
         }
 
         $user->email_verified_at = now();
@@ -114,10 +114,10 @@ class AuthController extends Controller
         $user->status = 'active';
         $user->save();
 
-        return response()->json([
-            'message' => 'Email verified successfully.',
-            'user' => $user->only(['id', 'name', 'email', 'status']),
-        ]);
+        return $this->success(
+            data: $user->only(['id', 'name', 'email', 'status']),
+            message: 'Email verified successfully.'
+        );
     }
 
     public function googleRedirect()
@@ -206,22 +206,21 @@ class AuthController extends Controller
         $userId = Cache::pull('auth_exchange_' . $request->exchange_token);
 
         if (!$userId) {
-            return response()->json(['message' => 'Invalid or expired exchange token.'], 400);
+            return $this->error('Invalid or expired exchange token.', 400);
         }
 
         $user = User::find($userId);
         if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
+            return $this->error('User not found.', 404);
         }
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return response()->json([
-            'message' => 'Login successful.',
+        return $this->success([
             'user' => $this->userPayload($user),
             'token' => $this->maybeIssueToken($user, $request),
-        ]);
+        ], 'Login successful.');
     }
 
     public function login(LoginRequest $request)
@@ -241,30 +240,29 @@ class AuthController extends Controller
         // Check approval status for center_admin users
         if ($user->hasRole('center_admin')) {
             if ($user->approval_status === 'rejected') {
-                return response()->json([
-                    'message' => 'Your registration has been rejected.',
-                    'approval_status' => 'rejected',
-                ], 403);
+                return $this->error(
+                    message: 'Your registration has been rejected.',
+                    status: 403,
+                    errors: ['approval_status' => 'rejected']
+                );
             }
 
             if ($user->approval_status === 'pending') {
                 $request->session()->regenerate();
-                return response()->json([
-                    'message' => 'Your account is pending admin approval.',
+                return $this->success([
                     'approval_status' => 'pending',
                     'user' => $this->userPayload($user),
                     'token' => $this->maybeIssueToken($user, $request),
-                ]);
+                ], 'Your account is pending admin approval.');
             }
         }
 
         $request->session()->regenerate();
 
-        return response()->json([
-            'message' => 'Login successful.',
+        return $this->success([
             'user' => $this->userPayload($user),
             'token' => $this->maybeIssueToken($user, $request),
-        ]);
+        ], 'Login successful.');
     }
 
     public function logout(Request $request)
@@ -279,7 +277,7 @@ class AuthController extends Controller
             $request->session()->regenerateToken();
         }
 
-        return response()->json(['message' => 'Logout successful.']);
+        return $this->success(message: 'Logout successful.');
     }
     public function me()
     {
@@ -352,7 +350,7 @@ class AuthController extends Controller
         // Queue reset mail to keep request fast
         Mail::to($request->email)->queue(new ResetCodeMail($plainToken, $request->email));
 
-        return response()->json(['message' => 'Password reset link has been emailed to you.']);
+        return $this->success(message: 'Password reset link has been emailed to you.');
     }
 
     // New endpoint to validate reset code and return a token for password reset
@@ -371,14 +369,12 @@ class AuthController extends Controller
         });
 
         if (!$record) {
-            return response()->json(['message' => 'Invalid or expired reset code.'], 400);
+            return $this->error('Invalid or expired reset code.', 400);
         }
 
-        return response()->json([
-            'data' => [
-                'token' => $request->code,
-                'email' => $record->email,
-            ]
+        return $this->success([
+            'token' => $request->code,
+            'email' => $record->email,
         ]);
     }
 
@@ -400,11 +396,11 @@ class AuthController extends Controller
             ->first();
 
         if (!$record || !Hash::check($request->token, $record->token)) {
-            return response()->json(['message' => 'Invalid or expired reset link.'], 400);
+            return $this->error('Invalid or expired reset link.', 400);
         }
 
         if (now()->diffInMinutes($record->created_at) > 30) {
-            return response()->json(['message' => 'Reset link expired.'], 400);
+            return $this->error('Reset link expired.', 400);
         }
 
         $user = User::where('email', $request->email)->first();
@@ -414,7 +410,7 @@ class AuthController extends Controller
         // Delete token
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        return response()->json(['message' => 'Password reset successfully.']);
+        return $this->success(message: 'Password reset successfully.');
     }
 
     /**

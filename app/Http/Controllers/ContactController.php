@@ -47,8 +47,9 @@ class ContactController extends Controller
     {
         $contacts = Contact::orderBy('created_at', 'desc')->get();
 
-        return response()->json([
-            'data' => $contacts,
-        ]);
+        return $this->success(
+            data: \App\Http\Resources\ContactResource::collection($contacts),
+            message: 'Contact messages retrieved successfully.'
+        );
     }
 }
