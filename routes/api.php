@@ -202,6 +202,20 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // ==========================================
+    // Parent Dashboard
+    // ==========================================
+    Route::middleware('role:parent')->prefix('dashboard/parent')->group(function () {
+        Route::get('/overview', [App\Http\Controllers\ParentDashboardController::class, 'overview']);
+        Route::get('/children', [App\Http\Controllers\ParentDashboardController::class, 'children']);
+        Route::get('/children/{child}', [App\Http\Controllers\ParentDashboardController::class, 'childShow']);
+        Route::get('/children/{child}/classes/{group}', [App\Http\Controllers\ParentDashboardController::class, 'childClassDetails']);
+        Route::get('/summary', [App\Http\Controllers\ParentDashboardController::class, 'summary']);
+        Route::get('/upcoming-classes', [App\Http\Controllers\ParentDashboardController::class, 'upcomingClasses']);
+        Route::get('/attendance', [App\Http\Controllers\ParentDashboardController::class, 'attendance']);
+        Route::get('/notifications', [App\Http\Controllers\ParentDashboardController::class, 'notifications']);
+    });
+
+    // ==========================================
     // Student Dashboard
     // ==========================================
     Route::middleware('role:student')->prefix('dashboard/student')->group(function () {
